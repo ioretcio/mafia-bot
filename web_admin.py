@@ -30,12 +30,56 @@ def list_users():
     conn.close()
     return render_template("users.html", users=users)
 
-# --- Події ---
+@app.route("/user/<int:user_id>")
+def user_profile(user_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    user = c.fetchone()
+   
+    if not user:
+        return "Користувача не знайдено", 404
+
+    # (опційно) дістанемо історію оплат
+    c = conn.cursor()
+    c.execute("SELECT date, amount, payment_type, comment FROM payments WHERE user_id = ?", (user_id,))
+    payments = c.fetchall()
+
+    return render_template("user_profile.html", user=user, payments=payments)
+
+
+@app.route("/update_status/<int:user_id>", methods=["POST"])
+def update_status(user_id):
+    new_status = request.form.get("status")
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE users SET status = ? WHERE id = ?", (new_status, user_id))
+    conn.commit()
+    conn.close()
+    flash("Статус оновлено!")
+    return redirect(url_for("user_profile", user_id=user_id))
+
+@app.route("/delete_user/<int:user_id>", methods=["POST"])
+def delete_user(user_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("list_users"))
+
 @app.route("/events")
 def list_events():
     conn = get_connection()
     c = conn.cursor()
-    c.execute("SELECT * FROM games WHERE date >= DATE('now') ORDER BY date")
+    c.execute('''
+        SELECT 
+            g.id, g.date, g.time, g.location, g.type, g.host,
+            (SELECT COUNT(*) FROM registrations r WHERE r.game_id = g.id) as players_count
+        FROM games g
+        WHERE g.date >= DATE('now')
+        ORDER BY g.date
+    ''')
     events = c.fetchall()
     conn.close()
     return render_template("events.html", events=events)
@@ -79,7 +123,7 @@ def create_event():
         media_url = ""
         if file:
             filename = file.filename
-            media_url = os.path.join("uploads", filename)  # зберігаємо як відносний шлях
+            media_url = f"uploads/{filename}"
             file.save(os.path.join(UPLOAD_FOLDER, filename))
 
         # Додай колонку media до INSERT
@@ -91,7 +135,7 @@ def create_event():
 
         
 
-                # Розсилка всім користувачам
+        # Розсилка всім користувачам
         c.execute("SELECT tg_id FROM users")
         users = c.fetchall()
 
@@ -101,9 +145,13 @@ def create_event():
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         markup = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="📥 Записатись", callback_data=f"signup:{date}_{time}")]
+                [
+                    InlineKeyboardButton(text="📥 Записатись", callback_data=f"signup:{date}_{time}"),
+                    InlineKeyboardButton(text="👥 Гравці", callback_data=f"players:{date}_{time}")
+                ]
             ]
         )
+
         conn.close()
         print(event_text)
         asyncio.run(send_announcement_to_users(users, event_text, markup, media_url))
