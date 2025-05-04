@@ -17,7 +17,7 @@ def init_db():
             username TEXT,
             full_name TEXT,
             photo TEXT,
-            status TEXT DEFAULT 'Кандидат',
+            status TEXT DEFAULT 'Новичок',
             games_played INTEGER DEFAULT 0,
             bonus_points INTEGER DEFAULT 0
         )
@@ -34,6 +34,16 @@ def init_db():
             host TEXT
         )
         ''')
+
+        try:
+            c.execute("ALTER TABLE games ADD COLUMN media TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            c.execute("ALTER TABLE games ADD COLUMN price INTEGER")
+        except sqlite3.OperationalError:
+            pass
 
         # Запис на ігри
         c.execute('''

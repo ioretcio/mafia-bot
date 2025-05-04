@@ -1,42 +1,79 @@
 <!DOCTYPE html>
-<html>
+<html lang="uk">
 <head>
+    <meta charset="UTF-8">
     <title>Профіль користувача</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        body { padding: 1rem; }
+        table th, table td { vertical-align: middle; }
+    </style>
 </head>
 <body>
-    <h2>👤 Профіль користувача #{{ user[0] }}</h2>
-    <p><b>Telegram ID:</b> {{ user[1] }}</p>
-    <p><b>Username:</b> @{{ user[2] }}</p>
-    <p><b>Ім’я:</b> {{ user[3] }}</p>
-    <p><b>Статус:</b>
-        <form method="post" action="{{ url_for('update_status', user_id=user[0]) }}">
-            <select name="status" onchange="this.form.submit()">
-                <option value="Новичок" {% if user[5]=='Новичок' %}selected{% endif %}>Новичок</option>
-                <option value="Резидент" {% if user[5]=='Резидент' %}selected{% endif %}>Резидент</option>
-                <option value="VIP" {% if user[5]=='VIP' %}selected{% endif %}>VIP</option>
-            </select>
+
+<div class="container">
+    <h2 class="mb-4">👤 Профіль користувача #{{ user[0] }}</h2>
+
+    <div class="mb-4">
+        <ul class="list-group">
+            <li class="list-group-item"><strong>Telegram ID:</strong> {{ user[1] }}</li>
+            <li class="list-group-item"><strong>Username:</strong> @{{ user[2] }}</li>
+            <li class="list-group-item"><strong>Ім’я:</strong> {{ user[3] }}</li>
+            <li class="list-group-item">
+                <strong>Статус:</strong>
+                <form class="d-inline" method="post" action="{{ url_for('update_status', user_id=user[0]) }}">
+                    <select name="status" class="form-select form-select-sm d-inline w-auto" onchange="this.form.submit()">
+                        <option value="Новичок" {% if user[5]=='Новичок' %}selected{% endif %}>Новичок</option>
+                        <option value="Резидент" {% if user[5]=='Резидент' %}selected{% endif %}>Резидент</option>
+                        <option value="VIP" {% if user[5]=='VIP' %}selected{% endif %}>VIP</option>
+                    </select>
+                </form>
+            </li>
+            <li class="list-group-item"><strong>Ігор відвідано:</strong> {{ user[6] }}</li>
+            <li class="list-group-item"><strong>Бонусні бали:</strong> {{ user[7] }}</li>
+        </ul>
+    </div>
+
+    <h4 class="mt-5">💳 Історія оплат</h4>
+    {% if payments %}
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered mt-3">
+            <thead class="table-light">
+                <tr>
+                    <th>Дата</th>
+                    <th>Сума</th>
+                    <th>Тип</th>
+                    <th>Коментар</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td>{{ p[0] }}</td>
+                    <td>{{ p[1] }} грн</td>
+                    <td>{{ p[2] }}</td>
+                    <td>{{ p[3] or '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p class="text-muted">Немає оплат</p>
+    {% endif %}
+
+    <div class="d-flex justify-content-between mt-5">
+        <a href="{{ url_for('list_users') }}" class="btn btn-secondary">⬅️ Назад до списку</a>
+
+        <form method="post" action="{{ url_for('delete_user', user_id=user[0]) }}">
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Видалити цього користувача?')">❌ Видалити</button>
         </form>
-    </p>
-    <p><b>Ігор відвідано:</b> {{ user[6] }}</p>
-    <p><b>Оплачено:</b> {{ user[7] }}</p>
-    <p><b>Бонусні бали:</b> {{ user[8] }}</p>
-    <h3>💳 Історія оплат</h3>
-    <table>
-        <tr><th>Дата</th><th>Сума</th><th>Тип</th><th>Коментар</th></tr>
-        {% for p in payments %}
-        <tr>
-            <td>{{ p[0] }}</td>
-            <td>{{ p[1] }} грн</td>
-            <td>{{ p[2] }}</td>
-            <td>{{ p[3] or '' }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+    </div>
+</div>
 
-    <form method="post" action="{{ url_for('delete_user', user_id=user[0]) }}">
-        <button type="submit" onclick="return confirm('Видалити цього користувача?')">❌ Видалити</button>
-    </form>
-
-    <p><a href="{{ url_for('list_users') }}">⬅️ Назад до списку</a></p>
 </body>
 </html>

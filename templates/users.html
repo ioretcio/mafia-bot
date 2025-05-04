@@ -1,32 +1,52 @@
 <!DOCTYPE html>
-<html>
+<html lang="uk">
 <head>
+    <meta charset="UTF-8">
     <title>Користувачі</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
-        table { border-collapse: collapse; width: 100%; }
-        th, td { padding: 8px; border: 1px solid #ccc; }
-        a { text-decoration: none; color: blue; }
+        body { padding: 1rem; }
+        a { text-decoration: none; }
+        .table-hover tbody tr:hover { background-color: #f0f0f0; }
     </style>
 </head>
 <body>
-    <h2>Список користувачів</h2>
-    <table>
-        <tr>
-            <th>ID</th><th>Telegram ID</th><th>Ім’я</th><th>Статус</th><th>Дії</th>
-        </tr>
-        {% for u in users %}
-        <tr>
-            <td><a href="{{ url_for('user_profile', user_id=u[0]) }}">{{ u[0] }}</a></td>
-            <td>{{ u[1] }}</td>
-            <td><a href="{{ url_for('user_profile', user_id=u[0]) }}">{{ u[3] }}</a></td>
-            <td>{{ u[5] }}</td>
-            <td>
-                <form method="post" action="{{ url_for('delete_user', user_id=u[0]) }}">
-                    <button type="submit" onclick="return confirm('Видалити користувача?')">❌ Видалити</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
+
+<div class="container">
+    <h2 class="mb-4">Список користувачів</h2>
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Telegram ID</th>
+                    <th>Ім’я</th>
+                    <th>Статус</th>
+                    <th>Дії</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td><a href="{{ url_for('user_profile', user_id=u[0]) }}">{{ u[0] }}</a></td>
+                    <td>{{ u[1] }}</td>
+                    <td><a href="{{ url_for('user_profile', user_id=u[0]) }}">{{ u[3] }}</a></td>
+                    <td>{{ u[5] }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('delete_user', user_id=u[0]) }}">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Видалити користувача?')">❌</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 </body>
 </html>

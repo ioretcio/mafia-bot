@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Заплановані події</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 1rem; }
+        .card + .card { margin-top: 1rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 class="mb-4">📅 Заплановані події</h2>
+
+    {% if events %}
+        {% for e in events %}
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ e[4] }} — {{ e[1] }} {{ e[2] }}</h5>
+                    <p class="card-text">
+                        <strong>Локація:</strong> {{ e[3] }}<br>
+                        <strong>Ведучий:</strong> {{ e[5] or 'Невідомо' }}
+                    </p>
+                    <a href="{{ url_for('view_event', event_id=e[0]) }}" class="btn btn-outline-primary btn-sm">Переглянути</a>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-muted">Подій поки немає.</p>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">⬅️ Назад до меню</a>
+    </div>
+</div>
+
+</body>
+</html>
