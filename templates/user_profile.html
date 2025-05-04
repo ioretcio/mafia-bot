@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Профіль користувача</title>
+</head>
+<body>
+    <h2>👤 Профіль користувача #{{ user[0] }}</h2>
+    <p><b>Telegram ID:</b> {{ user[1] }}</p>
+    <p><b>Username:</b> @{{ user[2] }}</p>
+    <p><b>Ім’я:</b> {{ user[3] }}</p>
+    <p><b>Статус:</b>
+        <form method="post" action="{{ url_for('update_status', user_id=user[0]) }}">
+            <select name="status" onchange="this.form.submit()">
+                <option value="Новичок" {% if user[5]=='Новичок' %}selected{% endif %}>Новичок</option>
+                <option value="Резидент" {% if user[5]=='Резидент' %}selected{% endif %}>Резидент</option>
+                <option value="VIP" {% if user[5]=='VIP' %}selected{% endif %}>VIP</option>
+            </select>
+        </form>
+    </p>
+    <p><b>Ігор відвідано:</b> {{ user[6] }}</p>
+    <p><b>Оплачено:</b> {{ user[7] }}</p>
+    <p><b>Бонусні бали:</b> {{ user[8] }}</p>
+    <h3>💳 Історія оплат</h3>
+    <table>
+        <tr><th>Дата</th><th>Сума</th><th>Тип</th><th>Коментар</th></tr>
+        {% for p in payments %}
+        <tr>
+            <td>{{ p[0] }}</td>
+            <td>{{ p[1] }} грн</td>
+            <td>{{ p[2] }}</td>
+            <td>{{ p[3] or '' }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <form method="post" action="{{ url_for('delete_user', user_id=user[0]) }}">
+        <button type="submit" onclick="return confirm('Видалити цього користувача?')">❌ Видалити</button>
+    </form>
+
+    <p><a href="{{ url_for('list_users') }}">⬅️ Назад до списку</a></p>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Користувачі</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; }
+        th, td { padding: 8px; border: 1px solid #ccc; }
+        a { text-decoration: none; color: blue; }
+    </style>
+</head>
+<body>
+    <h2>Список користувачів</h2>
+    <table>
+        <tr>
+            <th>ID</th><th>Telegram ID</th><th>Ім’я</th><th>Статус</th><th>Дії</th>
+        </tr>
+        {% for u in users %}
+        <tr>
+            <td><a href="{{ url_for('user_profile', user_id=u[0]) }}">{{ u[0] }}</a></td>
+            <td>{{ u[1] }}</td>
+            <td><a href="{{ url_for('user_profile', user_id=u[0]) }}">{{ u[3] }}</a></td>
+            <td>{{ u[5] }}</td>
+            <td>
+                <form method="post" action="{{ url_for('delete_user', user_id=u[0]) }}">
+                    <button type="submit" onclick="return confirm('Видалити користувача?')">❌ Видалити</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
