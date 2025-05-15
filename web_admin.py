@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from aiogram import Bot
 from aiogram.types import FSInputFile
+from werkzeug.utils import secure_filename
 
 from config import BOT_TOKEN
 load_dotenv()
@@ -164,33 +165,49 @@ def create_event():
 
 @app.route("/event/<int:event_id>", methods=["GET", "POST"])
 def view_event(event_id):
-        conn = get_connection()
-        c = conn.cursor()
+    conn = get_connection()
+    c = conn.cursor()
 
-        if request.method == "POST":
-            date = request.form["date"]
-            time = request.form["time"]
-            location = request.form["location"]
-            type_ = request.form["type"]
-            host = request.form["host"]
-            price = request.form["price"]
-            player_limit = request.form["player_limit"]
-            description = request.form["description"]
-            c.execute('''
-                UPDATE games
-                SET date = ?, time = ?, location = ?, type = ?, host = ?, price = ?, player_limit = ?, description = ?
-                WHERE id = ?
-            ''', (date, time, location, type_, host, price, player_limit, description, event_id))
-            conn.commit()
+    if request.method == "POST":
+        date = request.form["date"]
+        time_ = request.form["time"]
+        location = request.form["location"]
+        type_ = request.form["type"]
+        host = request.form["host"]
+        price = request.form["price"]
+        player_limit = request.form["player_limit"]
+        description = request.form["description"]
 
-        c.execute("SELECT * FROM games WHERE id = ?", (event_id,))
-        event = c.fetchone()
-        conn.close()
+        # Обробка файлу
+        file = request.files.get("media")
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            filepath = os.path.join("static/uploads", filename)
+            file.save(filepath)
+            media = filename
+        else:
+            # Якщо файл не змінено, зберігаємо поточне значення
+            c.execute("SELECT media FROM games WHERE id = ?", (event_id,))
+            media = c.fetchone()[0]
+        print(request.form)
+        print("player_limit =", player_limit, type(player_limit))
 
-        if not event:
-            return "Подію не знайдено", 404
+        c.execute('''
+            UPDATE games
+            SET date = ?, time = ?, location = ?, type = ?, host = ?, price = ?, player_limit = ?, description = ?, media = ?
+            WHERE id = ?
+        ''', (date, time_, location, type_, host, price, player_limit, description, media, event_id))
+        conn.commit()
 
-        return render_template("view_event.html", event=event)
+    c.execute("SELECT * FROM games WHERE id = ?", (event_id,))
+    event = c.fetchone()
+    conn.close()
+
+    if not event:
+        return "Подію не знайдено", 404
+    print("event", event)
+    return render_template("view_event.html", event=event)
+
 
 @app.route("/delete_event/<int:event_id>", methods=["POST"])
 def delete_event(event_id):

@@ -1,0 +1,6 @@
+aiogram
+markupsafe
+click
+jinja2
+dotenv
+pillow

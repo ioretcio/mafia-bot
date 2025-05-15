@@ -31,10 +31,11 @@ def init_db():
             time TEXT,
             location TEXT,
             type TEXT,
-            host TEXT
+            host TEXT,
             price INTEGER DEFAULT 0,
             player_limit INTEGER DEFAULT 0,
-            description TEXT
+            description TEXT,
+            media TEXT
         )
         ''')
 
