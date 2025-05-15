@@ -10,7 +10,15 @@ from aiogram.utils.markdown import hbold, hitalic
 async def show_upcoming_events(callback: types.CallbackQuery):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("SELECT id, date, time, location, type FROM games WHERE date >= DATE('now') ORDER BY date LIMIT 5")
+    c.execute("""
+        SELECT 
+            g.id, g.date, g.time, g.location, g.type, 
+            (SELECT COUNT(*) FROM registrations r WHERE r.game_id = g.id) as reg_count,
+            g.player_limit
+        FROM games g
+        WHERE g.date >= DATE('now')
+        ORDER BY g.date LIMIT 5
+    """)
     events = c.fetchall()
     conn.close()
 
@@ -22,8 +30,8 @@ async def show_upcoming_events(callback: types.CallbackQuery):
     await callback.message.delete()
 
     for event in events:
-        game_id, date, time, location, type_ = event
-        text = f"📅 {hbold(date)} о {hitalic(time)}\n🎮 {type_}\n📍 {location}"
+        game_id, date, time, location, type_, reg_count, player_limit = event
+        text = f"📅 {hbold(date)} о {hitalic(time)}\n🎮 {type_}\n📍 {location}\n👥 Записано: {reg_count}/{player_limit}"
         buttons = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="📥 Записатись", callback_data=f"signup:{date}_{time}")],
@@ -73,15 +81,26 @@ async def handle_signup(callback: types.CallbackQuery):
         conn.close()
         return
 
+    # Перевірка на ліміт
+    c.execute("SELECT COUNT(*) FROM registrations WHERE game_id = ?", (game_id,))
+    reg_count = c.fetchone()[0]
+    c.execute("SELECT player_limit FROM games WHERE id = ?", (game_id,))
+    player_limit = c.fetchone()[0]
+    if player_limit and reg_count >= player_limit:
+        await callback.answer("❌ Місць більше немає.", show_alert=True)
+        conn.close()
+        return
+
     # Запис до таблиці registrations
     c.execute(
         "INSERT INTO registrations (user_id, game_id, payment_type, present) VALUES (?, ?, ?, ?)",
-        (user_id, game_id, "pending", 1)  # payment_type = 'pending'
+        (user_id, game_id, "pending", 1)
     )
     conn.commit()
     conn.close()
 
     await callback.answer("✅ Ви записані на гру!")
+
 
 @router.callback_query(lambda c: c.data.startswith("players:"))
 async def handle_show_players(callback: types.CallbackQuery):
@@ -111,6 +130,7 @@ async def handle_show_players(callback: types.CallbackQuery):
             text += "\n"
 
     await callback.message.answer(text, parse_mode="HTML")
+
 
 @router.callback_query(lambda c: c.data.startswith("unregister:"))
 async def handle_unregister(callback: types.CallbackQuery):

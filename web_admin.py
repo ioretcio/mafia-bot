@@ -75,7 +75,8 @@ def list_events():
     c.execute('''
         SELECT 
             g.id, g.date, g.time, g.location, g.type, g.host,
-            (SELECT COUNT(*) FROM registrations r WHERE r.game_id = g.id) as players_count
+            (SELECT COUNT(*) FROM registrations r WHERE r.game_id = g.id) as players_count,
+            g.player_limit
         FROM games g
         WHERE g.date >= DATE('now')
         ORDER BY g.date
@@ -117,6 +118,8 @@ def create_event():
         type_ = request.form["type"]
         host = request.form["host"]
         price = request.form["price"]
+        player_limit = request.form["player_limit"]
+        description = request.form["description"]
         file = request.files.get("media")
         conn = get_connection()
         c = conn.cursor()
@@ -126,11 +129,11 @@ def create_event():
             media_url = f"uploads/{filename}"
             file.save(os.path.join(UPLOAD_FOLDER, filename))
 
-        # Додай колонку media до INSERT
+
         c.execute('''
-            INSERT INTO games (date, time, location, type, host, media, price)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (date, time, location, type_, host, media_url, price))
+            INSERT INTO games (date, time, location, type, host, media, price, player_limit, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (date, time, location, type_, host, media_url, price, player_limit, description))
         conn.commit()
 
         
@@ -171,11 +174,13 @@ def view_event(event_id):
             type_ = request.form["type"]
             host = request.form["host"]
             price = request.form["price"]
+            player_limit = request.form["player_limit"]
+            description = request.form["description"]
             c.execute('''
                 UPDATE games
-                SET date = ?, time = ?, location = ?, type = ?, host = ?, price = ?
+                SET date = ?, time = ?, location = ?, type = ?, host = ?, price = ?, player_limit = ?, description = ?
                 WHERE id = ?
-            ''', (date, time, location, type_, host, price, event_id))
+            ''', (date, time, location, type_, host, price, player_limit, description, event_id))
             conn.commit()
 
         c.execute("SELECT * FROM games WHERE id = ?", (event_id,))

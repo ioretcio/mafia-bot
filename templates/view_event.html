@@ -34,6 +34,14 @@
             <label class="form-label">Ціна (грн):</label>
             <input type="number" name="price" class="form-control" value="{{ event[7] or '' }}" required min="0">
         </div>
+            <div class="mb-3">
+            <label class="form-label">Ліміт гравців:</label>
+            <input type="number" name="player_limit" class="form-control" required min="1">
+        </div>
+            <div class="mb-3">
+            <label class="form-label">Опис:</label>
+            <input type="text" name="description" class="form-control" required>
+        </div>
         <div class="mb-3">
             <label class="form-label">Ведучий:</label>
             <input type="text" name="host" class="form-control" value="{{ event[5] }}">

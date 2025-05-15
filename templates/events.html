@@ -24,7 +24,7 @@
                     <p class="card-text">
                         <strong>Локація:</strong> {{ e[3] }}<br>
                         <strong>Ведучий:</strong> {{ e[5] or 'Невідомо' }}<br>
-                        <strong>Гравців записано:</strong> {{ e[6] }}
+                        <strong>Гравців:</strong> {{ e[6] }}/{{ e[7] }}
                     </p>
                     <a href="{{ url_for('view_event', event_id=e[0]) }}" class="btn btn-outline-primary btn-sm">Переглянути</a>
                 </div>

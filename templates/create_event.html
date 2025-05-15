@@ -40,7 +40,14 @@
             <label class="form-label">Ціна (грн):</label>
             <input type="number" name="price" class="form-control" required min="0">
         </div>
-        
+        <div class="mb-3">
+            <label class="form-label">Ліміт гравців:</label>
+            <input type="number" name="player_limit" class="form-control" required min="0">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Опис:</label>
+            <input type="text" name="description" class="form-control" required>
+        </div>
         <button type="submit" class="btn btn-success">✅ Створити</button>
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Назад</a>
     </form>
