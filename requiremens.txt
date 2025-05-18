@@ -4,3 +4,6 @@ click
 jinja2
 dotenv
 pillow
+flask
+
+sqlalchemy

@@ -14,23 +14,23 @@
     <form method="post" enctype="multipart/form-data">
         <div class="mb-3">
             <label class="form-label">Дата:</label>
-            <input type="date" name="date" class="form-control" required>
+            <input type="date" name="date" class="form-control" required value="{{ default_date or '25/05/2025' }}">
         </div>
         <div class="mb-3">
             <label class="form-label">Час:</label>
-            <input type="time" name="time" class="form-control" required>
+            <input type="time" name="time" class="form-control" required value="{{ default_time or '19:00' }}">
         </div>
         <div class="mb-3">
             <label class="form-label">Локація:</label>
-            <input type="text" name="location" class="form-control" required>
+            <input type="text" name="location" class="form-control" required value="Мафія Lounge">
         </div>
         <div class="mb-3">
             <label class="form-label">Тип гри:</label>
-            <input type="text" name="type" class="form-control" required>
+            <input type="text" name="type" class="form-control" required value="Класична мафія">
         </div>
         <div class="mb-3">
             <label class="form-label">Ведучий:</label>
-            <input type="text" name="host" class="form-control">
+            <input type="text" name="host" class="form-control" value="Домінік">
         </div>
         <div class="mb-3">
             <label class="form-label">Медіа (фото/відео):</label>
@@ -38,15 +38,15 @@
         </div>
         <div class="mb-3">
             <label class="form-label">Ціна (грн):</label>
-            <input type="number" name="price" class="form-control" required min="0">
+            <input type="number" name="price" class="form-control" required min="0" value="150">
         </div>
         <div class="mb-3">
             <label class="form-label">Ліміт гравців:</label>
-            <input type="number" name="player_limit" class="form-control" required min="0">
+            <input type="number" name="player_limit" class="form-control" required min="0" value="12">
         </div>
         <div class="mb-3">
             <label class="form-label">Опис:</label>
-            <input type="text" name="description" class="form-control" required>
+            <input type="text" name="description" class="form-control" required value="Граємо з приємною компанією!">
         </div>
         <button type="submit" class="btn btn-success">✅ Створити</button>
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Назад</a>

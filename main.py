@@ -1,7 +1,7 @@
 import asyncio
 from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN
-from db import init_db
+from database import init_db
 from dotenv import load_dotenv
 
 from handlers import start_router, profile_router, events_router, settings_router

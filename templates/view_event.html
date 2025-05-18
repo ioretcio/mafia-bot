@@ -11,49 +11,50 @@
 <body>
 
 <div class="container">
-    <h2 class="mb-4">📋 Подія №{{ event[0] }}</h2>
+    <h2 class="mb-4">📋 Подія №{{ event.id }}</h2>
 
     <form method="post" enctype="multipart/form-data">
         <div class="mb-3">
             <label class="form-label">Дата:</label>
-            <input type="date" name="date" class="form-control" value="{{ event[1] }}" required>
+            <input type="date" name="date" class="form-control" value="{{ event.date }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">Час:</label>
-            <input type="time" name="time" class="form-control" value="{{ event[2] }}" required>
+            <input type="time" name="time" class="form-control" value="{{ event.time }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">Локація:</label>
-            <input type="text" name="location" class="form-control" value="{{ event[3] }}" required>
+            <input type="text" name="location" class="form-control" value="{{ event.location }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">Тип гри:</label>
-            <input type="text" name="type" class="form-control" value="{{ event[4] }}" required>
+            <input type="text" name="type" class="form-control" value="{{ event.type }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">Ціна (грн):</label>
-            <input type="number" name="price" class="form-control" value="{{ event[6] or '' }}" required min="0">
+            <input type="number" name="price" class="form-control" value="{{ event.price or '' }}" required min="0">
         </div>
-            <div class="mb-3">
+        <div class="mb-3">
             <label class="form-label">Ліміт гравців:</label>
-            <input type="number" name="player_limit" class="form-control" value="{{ event[7] }}" required min="1">
+            <input type="number" name="player_limit" class="form-control" value="{{ event.player_limit or '' }}" required min="1">
         </div>
-            <div class="mb-3">
+        <div class="mb-3">
             <label class="form-label">Опис:</label>
-            <input type="text" name="description" class="form-control"  value="{{ event[8] }}" required>
+            <input type="text" name="description" class="form-control" value="{{ event.description or '' }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">Ведучий:</label>
-            <input type="text" name="host" class="form-control" value="{{ event[5] }}">
+            <input type="text" name="host" class="form-control" value="{{ event.host or '' }}">
         </div>
         <div class="mb-3">
             <label class="form-label">Медіа (завантажити новий файл):</label>
             <input type="file" name="media" class="form-control">
         </div>
+
         <div class="d-flex justify-content-between">
             <button type="submit" class="btn btn-success">💾 Зберегти зміни</button>
 
-            <form method="post" action="{{ url_for('delete_event', event_id=event[0]) }}">
+            <form method="post" action="{{ url_for('delete_event', event_id=event.id) }}">
                 <button type="submit" class="btn btn-danger" onclick="return confirm('Видалити подію?')">❌ Видалити</button>
             </form>
         </div>

@@ -16,25 +16,25 @@
 <body>
 
 <div class="container">
-    <h2 class="mb-4">👤 Профіль користувача #{{ user[0] }}</h2>
+    <h2 class="mb-4">👤 Профіль користувача #{{ user.id }}</h2>
 
     <div class="mb-4">
         <ul class="list-group">
-            <li class="list-group-item"><strong>Telegram ID:</strong> {{ user[1] }}</li>
-            <li class="list-group-item"><strong>Username:</strong> @{{ user[2] }}</li>
-            <li class="list-group-item"><strong>Ім’я:</strong> {{ user[3] }}</li>
+            <li class="list-group-item"><strong>Telegram ID:</strong> {{ user.tg_id }}</li>
+            <li class="list-group-item"><strong>Username:</strong> @{{ user.username }}</li>
+            <li class="list-group-item"><strong>Ім’я:</strong> {{ user.full_name }}</li>
             <li class="list-group-item">
                 <strong>Статус:</strong>
-                <form class="d-inline" method="post" action="{{ url_for('update_status', user_id=user[0]) }}">
+                <form class="d-inline" method="post" action="{{ url_for('update_status', user_id=user.id) }}">
                     <select name="status" class="form-select form-select-sm d-inline w-auto" onchange="this.form.submit()">
-                        <option value="Новичок" {% if user[5]=='Новичок' %}selected{% endif %}>Новичок</option>
-                        <option value="Резидент" {% if user[5]=='Резидент' %}selected{% endif %}>Резидент</option>
-                        <option value="VIP" {% if user[5]=='VIP' %}selected{% endif %}>VIP</option>
+                        <option value="Новичок" {% if user.status == 'Новичок' %}selected{% endif %}>Новичок</option>
+                        <option value="Резидент" {% if user.status == 'Резидент' %}selected{% endif %}>Резидент</option>
+                        <option value="VIP" {% if user.status == 'VIP' %}selected{% endif %}>VIP</option>
                     </select>
                 </form>
             </li>
-            <li class="list-group-item"><strong>Ігор відвідано:</strong> {{ user[6] }}</li>
-            <li class="list-group-item"><strong>Бонусні бали:</strong> {{ user[7] }}</li>
+            <li class="list-group-item"><strong>Ігор відвідано:</strong> {{ user.games_played }}</li>
+            <li class="list-group-item"><strong>Бонусні бали:</strong> {{ user.bonus_points }}</li>
         </ul>
     </div>
 
@@ -53,10 +53,10 @@
             <tbody>
                 {% for p in payments %}
                 <tr>
-                    <td>{{ p[0] }}</td>
-                    <td>{{ p[1] }} грн</td>
-                    <td>{{ p[2] }}</td>
-                    <td>{{ p[3] or '' }}</td>
+                    <td>{{ p.date }}</td>
+                    <td>{{ p.amount }} грн</td>
+                    <td>{{ p.payment_type }}</td>
+                    <td>{{ p.comment or '' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -69,7 +69,7 @@
     <div class="d-flex justify-content-between mt-5">
         <a href="{{ url_for('list_users') }}" class="btn btn-secondary">⬅️ Назад до списку</a>
 
-        <form method="post" action="{{ url_for('delete_user', user_id=user[0]) }}">
+        <form method="post" action="{{ url_for('delete_user', user_id=user.id) }}">
             <button type="submit" class="btn btn-danger" onclick="return confirm('Видалити цього користувача?')">❌ Видалити</button>
         </form>
     </div>

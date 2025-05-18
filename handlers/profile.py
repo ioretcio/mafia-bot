@@ -2,31 +2,33 @@ from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
-from db import get_connection
+from handlers.start import get_back_to_main_menu,get_main_inline_menu
+from database import SessionLocal
 from models import User
 from PIL import Image
 from io import BytesIO
 from aiogram.filters import StateFilter
-from handlers.start import get_main_inline_menu
 import os
+from utils import safe_edit_or_send
 
 router = Router()
 
 class EditStates(StatesGroup):
     awaiting_new_username = State()
 
-
-
 @router.callback_query(F.data == "profile")
 async def handle_profile(callback: types.CallbackQuery):
     user = User.get_by_tg_id(callback.from_user.id)
+    if not user:
+        await callback.message.answer("⚠️ Користувача не знайдено.")
+        return
 
     text = f"👤 <b>Профіль</b>\n\n" \
-           f"Ім'я: {user[3]}\n" \
-           f"Нік: @{user[2]}\n" \
-           f"Статус: {user[5]}\n" \
-           f"Ігор відвідано: {user[6]}\n" \
-           f"Бонуси: {user[7]}"
+           f"Ім'я: {user.full_name}\n" \
+           f"Нік: @{user.username}\n" \
+           f"Статус: {user.status}\n" \
+           f"Ігор відвідано: {user.games_played}\n" \
+           f"Бонуси: {user.bonus_points}"
 
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✏️ Змінити нік", callback_data="edit_username")],
@@ -34,7 +36,7 @@ async def handle_profile(callback: types.CallbackQuery):
         [InlineKeyboardButton(text="⬅️ Головне меню", callback_data="main_menu")]
     ])
 
-    photo_path = os.path.join("static", user[4]) if user[4] else "resources/anon_user.png"
+    photo_path = os.path.join("static", user.photo) if user.photo else "static/resources/anon_user.png"
     try:
         photo = FSInputFile(photo_path)
         await callback.message.answer_photo(photo=photo, caption=text, parse_mode="HTML", reply_markup=markup)
@@ -53,7 +55,14 @@ async def prompt_photo_upload(callback: types.CallbackQuery):
 
 @router.message(F.photo)
 async def handle_profile_photo(message: types.Message):
-    user = User.get_by_tg_id(message.from_user.id)
+    # ORM: оновлення photo через SQLAlchemy
+    session = SessionLocal()
+    user = session.query(User).filter_by(tg_id=message.from_user.id).first()
+    if not user:
+        await message.answer("⚠️ Користувача не знайдено.")
+        session.close()
+        return
+
     photo = message.photo[-1]
     file = await message.bot.get_file(photo.file_id)
     file_bytes = await message.bot.download_file(file.file_path)
@@ -69,16 +78,17 @@ async def handle_profile_photo(message: types.Message):
         save_path = f"static/profile_photos/{message.from_user.id}.jpg"
         resized.save(save_path)
 
-        conn = get_connection()
-        c = conn.cursor()
-        c.execute("UPDATE users SET photo = ? WHERE tg_id = ?", (f"profile_photos/{message.from_user.id}.jpg", message.from_user.id))
-        conn.commit()
-        conn.close()
+        # Оновлюємо поле photo через ORM
+        user.photo = f"profile_photos/{message.from_user.id}.jpg"
+        session.commit()
 
         await message.answer("✅ Фото оновлено!")
+        await safe_edit_or_send(message, f"👋 Продовжимо!", reply_markup=get_main_inline_menu())
     except Exception as e:
         await message.answer("❌ Не вдалося обробити фото.")
         print(f"Помилка обробки фото: {e}")
+    finally:
+        session.close()
 
 
 @router.callback_query(F.data == "edit_username")
@@ -91,10 +101,16 @@ async def prompt_username(callback: types.CallbackQuery, state: FSMContext):
 @router.message(F.text, StateFilter(EditStates.awaiting_new_username))
 async def save_new_username(message: types.Message, state: FSMContext):
     new_username = message.text.strip().lstrip("@")
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("UPDATE users SET username = ? WHERE tg_id = ?", (new_username, message.from_user.id))
-    conn.commit()
-    conn.close()
+    session = SessionLocal()
+    user = session.query(User).filter_by(tg_id=message.from_user.id).first()
+    if not user:
+        await message.answer("⚠️ Користувача не знайдено.")
+        session.close()
+        return
+
+    user.username = new_username
+    session.commit()
+    session.close()
     await message.answer(f"✅ Нік оновлено на @{new_username}")
+    await safe_edit_or_send(message, f"👋 Продовжимо!", reply_markup=get_main_inline_menu())
     await state.clear()
