@@ -2,91 +2,84 @@ import hashlib
 import base64
 import hmac
 import time
-from flask import Blueprint, request, jsonify
-from database import SessionLocal
-from models import Payment, User, Game
+# from flask import Blueprint, request, jsonify
+# from database import SessionLocal
+# from models import Payment, User, Game
 import os
-
-payments_bp = Blueprint("payments", __name__)
+from dotenv import load_dotenv
+load_dotenv()
+# payments_bp = Blueprint("payments", __name__)
 
 MERCHANT_ACCOUNT = os.getenv("merchantAccount")
 MERCHANT_SECRET_KEY = os.getenv("merchantSecretKey")
 
+import hmac
+import hashlib
+import requests
+import json
 
-# Хелпер для підпису
-def generate_signature(params: dict, secret: str) -> str:
-    keys = [
-        "merchantAccount",
-        "orderReference",
-        "amount",
-        "currency",
-        "productName",
-        "productCount",
-        "productPrice"
-    ]
-    data = ";".join(str(params[k]) for k in keys)
-    return base64.b64encode(hmac.new(secret.encode(), data.encode(), hashlib.md5).digest()).decode()
+# === Вхідні дані ===
+merchant_domain = "test.wayforpay.com"
+order_reference = "test-order-123456"
+order_date = 1747720000  # будь-яке число (timestamp)
+amount = "1488"
+currency = "UAH"
+product_name = "Test product"
+product_count = "1"
+product_price = "1488"
 
-
-@payments_bp.route("/create_payment", methods=["POST"])
-def create_payment():
-    data = request.json
-    user_id = data.get("user_id")
-    game_id = data.get("game_id")
-    amount = data.get("amount")
-
-    session = SessionLocal()
-    user = session.query(User).get(user_id)
-    game = session.query(Game).get(game_id)
-
-    if not user or not game:
-        session.close()
-        return jsonify({"error": "Invalid user or game"}), 400
-
-    order_ref = f"ORDER-{user_id}-{game_id}-{int(time.time())}"
-
-    payload = {
-        "merchantAccount": MERCHANT_ACCOUNT,
-        "orderReference": order_ref,
-        "amount": amount,
-        "currency": "UAH",
-        "productName": [f"Гра {game.date} {game.time}"],
-        "productCount": [1],
-        "productPrice": [amount],
-    }
-    signature = generate_signature(payload, MERCHANT_SECRET_KEY)
-
-    session.close()
-    return jsonify({
-        "url": "https://secure.wayforpay.com/pay",
-        "data": {
-            **payload,
-            "merchantSignature": signature,
-            "returnUrl": "https://your-site.com/payment_return",
-            "serviceUrl": "https://your-site.com/payment_callback"
-        }
-    })
+print(MERCHANT_ACCOUNT, MERCHANT_SECRET_KEY)
 
 
-@payments_bp.route("/payment_callback", methods=["POST"])
-def payment_callback():
-    data = request.json
-    if data.get("transactionStatus") == "Approved":
-        session = SessionLocal()
+# === Створення підпису ===
+sign_parts = [
+    MERCHANT_ACCOUNT,
+    merchant_domain,
+    order_reference,
+    str(order_date),
+    amount,
+    currency,
+    product_name,
+    product_count,
+    product_price
+]
+sign_str = ";".join(sign_parts)
+signature = hmac.new(MERCHANT_SECRET_KEY.encode(), sign_str.encode(), hashlib.md5).hexdigest()
 
-        user_id = int(data.get("orderReference").split("-")[1])
-        game_id = int(data.get("orderReference").split("-")[2])
+print("🧾 sign_str:", sign_str)
+print("🔐 signature:", signature)
 
-        payment = Payment(
-            user_id=user_id,
-            game_id=game_id,
-            amount=data.get("amount", 0),
-            payment_type=data.get("paymentMethod", "online"),
-            date=data.get("createdDate", time.strftime("%Y-%m-%d")),
-            comment="WayForPay"
-        )
-        session.add(payment)
-        session.commit()
-        session.close()
+# === Формування запиту ===
+payload = {
+    "transactionType": "CREATE_INVOICE",
+    "merchantAccount": MERCHANT_ACCOUNT,
+    "merchantAuthType": "SimpleSignature",
+    "merchantDomainName": merchant_domain,
+    "merchantSignature": signature,
+    "apiVersion": 1,
+    "language": "en",
+    "serviceUrl": "http://example.com/callback",
+    "orderReference": order_reference,
+    "orderDate": order_date,
+    "amount": amount,
+    "currency": currency,
+    "orderTimeout": 86400,
+    "productName": [product_name],
+    "productPrice": [float(product_price)],
+    "productCount": [int(product_count)],
+    "clientFirstName": "Test",
+    "clientLastName": "User",
+    "clientEmail": "test@example.com",
+    "clientPhone": "380000000000"
+}
 
-    return jsonify({"status": "received"})
+# === Відправлення ===
+print("📤 Відправляємо запит до WayForPay...")
+response = requests.post("https://api.wayforpay.com/api", json=payload)
+print("📥 Статус:", response.status_code)
+
+try:
+    print("📦 Відповідь:", json.dumps(response.json(), indent=2, ensure_ascii=False))
+except:
+    print("❌ Не вдалося розпарсити відповідь")
+    print("Raw:", response.text)
