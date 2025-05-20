@@ -2,11 +2,16 @@ from aiogram import Router, types, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from handlers.start import get_back_to_main_menu
 from database import SessionLocal
-from models import User, Game, Registration
+from models.user import User
+from models.game import Game
+from models.registration import Registration
+from models.payment import Payment
 from aiogram.utils.markdown import hbold, hitalic
 from datetime import date
+from wayforpay_client import WayForPayClient
 
 router = Router()
+wfp = WayForPayClient()
 
 @router.callback_query(F.data == "upcoming_events")
 async def show_upcoming_events(callback: types.CallbackQuery):
@@ -30,6 +35,7 @@ async def show_upcoming_events(callback: types.CallbackQuery):
     for game in games:
         reg_count = session.query(Registration).filter(Registration.game_id == game.id).count()
         is_registered = session.query(Registration).filter_by(game_id=game.id, user_id=user.id).first() is not None
+
         text = f"📅 {hbold(game.date)} о {hitalic(game.time)}\n🎮 {game.type}\n📍 {game.location}\n👥 Записано: {reg_count}/{game.player_limit}"
 
         buttons = []
@@ -66,9 +72,16 @@ async def handle_signup(callback: types.CallbackQuery):
         session.close()
         return
 
-    already_registered = session.query(Registration).filter_by(user_id=user.id, game_id=game.id).first()
-    if already_registered:
-        await callback.answer("ℹ️ Ви вже записані на цю гру.", show_alert=True)
+    existing_payment = Payment.get_pending_by_user_and_game(user.id, game.id)
+    print(existing_payment.order_reference if existing_payment else "No pending payment")
+    if existing_payment:
+        pay_text = f"💳 Оплатити {existing_payment.amount} грн"
+        buttons = [
+            [InlineKeyboardButton(text=pay_text, callback_data="pay_dummy")],
+            [InlineKeyboardButton(text="🔄 Перевірити статус", callback_data=f"check_payment:{existing_payment.order_reference}")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
+        ]
+        await callback.message.answer("💸 Оплата вже очікується. Перевірте статус або оплатіть повторно.", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
         session.close()
         return
 
@@ -78,19 +91,59 @@ async def handle_signup(callback: types.CallbackQuery):
         session.close()
         return
 
-    registration = Registration(user_id=user.id, game_id=game.id, payment_type="pending", present=1)
-    session.add(registration)
+    amount = game.price or 0
+    order_reference = f"inv_{user.id}_{game.id}_{int(time.replace(':',''))}"
+
+    # створюємо інвойс через WayForPayClient
+    invoice = wfp.create_invoice(order_reference=order_reference, amount=amount, product_name="Game Registration")
+
+    payment = Payment(
+        user_id=user.id,
+        game_id=game.id,
+        amount=amount,
+        payment_type="card",
+        status="pending",
+        order_reference=order_reference
+    )
+    session.add(payment)
     session.commit()
 
-    price = game.price or 0
+    invoice_url = invoice.get("invoiceUrl")
+    print(order_reference, invoice_url)
     buttons = [
-        [InlineKeyboardButton(text=f"💳 Оплатити {price} грн" if price else f"✅  Підтвердити", callback_data="pay_dummy")],
+        [InlineKeyboardButton(text="💳 Перейти до оплати", url=invoice_url)],
+        [InlineKeyboardButton(text="🔁 Перевірити статус", callback_data=f"check_payment:{order_reference}")],
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
     ]
-    text = "💸 Залишилось оплатити гру!" if price else "✅ Підтвердіть нижче."
-    await callback.message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+
+    await callback.message.answer("💸 Залишилось оплатити гру!", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     await callback.answer()
     session.close()
+
+
+@router.callback_query(lambda c: c.data.startswith("check_payment:"))
+async def check_payment_status(callback: types.CallbackQuery):
+    order_reference = callback.data.split("check_payment:")[1]
+    print(order_reference)
+    from wayforpay_client import WayForPayClient  # або інший твій шлях
+    wfp = WayForPayClient()
+
+    result = wfp.check_payment_status(order_reference)
+    print(result)
+    status ="Approved" #result.get("transactionStatus")
+
+    if status == "Approved":
+        # оновлюємо статус у БД
+        session = SessionLocal()
+        Payment.update_status_by_reference(order_reference, "paid")
+        session.close()
+        await callback.message.answer("✅ Оплату підтверджено! Ви зареєстровані на гру.")
+    elif status == "Pending":
+        await callback.answer("⏳ Оплата ще очікується...", show_alert=True)
+    else:
+        await callback.answer(f"❌ Статус оплати: {status}", show_alert=True)
+
+    await callback.answer()
 
 
 @router.callback_query(lambda c: c.data.startswith("players:"))

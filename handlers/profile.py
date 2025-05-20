@@ -4,7 +4,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 from handlers.start import get_back_to_main_menu,get_main_inline_menu
 from database import SessionLocal
-from models import User
+from models.user import User
 from PIL import Image
 from io import BytesIO
 from aiogram.filters import StateFilter

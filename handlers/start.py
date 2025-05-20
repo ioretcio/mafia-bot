@@ -1,7 +1,7 @@
 from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from models import User
+from models.user import User
 from utils import safe_edit_or_send
 from aiogram import F
 

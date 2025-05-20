@@ -1,5 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
-from models import User, Game, Payment
+from models.user import User
+from models.game import Game
+from models.registration import Registration
+from models.payment import Payment
 import os
 from dotenv import load_dotenv
 from aiogram import Bot
@@ -107,7 +110,10 @@ def create_event():
                 ]
             ]
         )
-        asyncio.run(send_announcement_to_users(users, event_text, markup, media_url))
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete((send_announcement_to_users(users, event_text, markup, media_url)))
+        loop.close()
         return redirect(url_for("list_events"))
     return render_template("create_event.html")
 
