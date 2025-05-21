@@ -9,6 +9,7 @@ from aiogram import Bot
 from aiogram.types import FSInputFile
 from werkzeug.utils import secure_filename
 import asyncio
+from database import SessionLocal
 
 from config import BOT_TOKEN
 load_dotenv()
@@ -117,6 +118,26 @@ def create_event():
         loop.close()
         return redirect(url_for("list_events"))
     return render_template("create_event.html")
+
+
+@app.route("/event/<int:event_id>/players")
+def show_registered_players(event_id):
+    event = Game.get(event_id)
+    if not event:
+        return "Подію не знайдено", 404
+
+    session = SessionLocal()
+    regs = (
+        session.query(Registration)
+        .filter_by(game_id=event_id)
+        .join(User, Registration.user_id == User.id)
+        .with_entities(User.full_name, User.username)
+        .all()
+    )
+    session.close()
+
+    return render_template("registered_players.html", event=event, players=regs)
+
 
 @app.route("/event/<int:event_id>", methods=["GET", "POST"])
 def view_event(event_id):
