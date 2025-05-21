@@ -55,7 +55,8 @@ def list_events():
         (
             e.id, e.date, e.time, e.location, e.type, e.host,
             Game.players_count(e.id),
-            e.player_limit
+            e.player_limit,
+            e.media  # додано
         ) for e in events
     ])
 
@@ -143,6 +144,7 @@ def view_event(event_id):
 
 @app.route("/delete_event/<int:event_id>", methods=["POST"])
 def delete_event(event_id):
+    print(f"Deleting event with ID: {event_id}")
     Game.delete(event_id)
     return redirect(url_for("list_events"))
 

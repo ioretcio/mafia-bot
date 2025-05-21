@@ -5,5 +5,5 @@ jinja2
 dotenv
 pillow
 flask
-
+requests
 sqlalchemy

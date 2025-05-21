@@ -67,7 +67,6 @@ class WayForPayClient:
     def check_payment_status(self, order_reference: str) -> dict:
         sign_parts = [
             self.account,
-            self.domain,
             order_reference
         ]
         signature = self._generate_signature(sign_parts)

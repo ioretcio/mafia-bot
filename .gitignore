@@ -1,8 +1,4 @@
 .env
 __pycache__
-*.db
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.mp4
+static/profile_photos
+static/uploads

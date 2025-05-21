@@ -4,11 +4,17 @@
     <meta charset="UTF-8">
     <title>Заплановані події</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='resources/icon.png') }}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { padding: 1rem; }
         .card + .card { margin-top: 1rem; }
+        .event-media {
+        max-height: 180px;
+        object-fit: cover;
+        border-radius: 0 0.1rem 0.1rem 0;
+    }
     </style>
 </head>
 <body>
@@ -18,15 +24,24 @@
 
     {% if events %}
         {% for e in events %}
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">{{ e[4] }} — {{ e[1] }} {{ e[2] }}</h5>
-                    <p class="card-text">
-                        <strong>Локація:</strong> {{ e[3] }}<br>
-                        <strong>Ведучий:</strong> {{ e[5] or 'Невідомо' }}<br>
-                        <strong>Гравців:</strong> {{ e[6] }}/{{ e[7] }}
-                    </p>
-                    <a href="{{ url_for('view_event', event_id=e[0]) }}" class="btn btn-outline-primary btn-sm">Переглянути</a>
+            <div class="card mb-3">
+                <div class="row g-0">
+                    <div class="col-md-8">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ e[4] }} — {{ e[1] }} {{ e[2] }}</h5>
+                            <p class="card-text">
+                                <strong>Локація:</strong> {{ e[3] }}<br>
+                                <strong>Ведучий:</strong> {{ e[5] or 'Невідомо' }}<br>
+                                <strong>Гравців:</strong> {{ e[6] }}/{{ e[7] }}
+                            </p>
+                            <a href="{{ url_for('view_event', event_id=e[0]) }}" class="btn btn-outline-primary btn-sm">Перегляд, редагування</a>
+                        </div>
+                    </div>
+                    {% if e[8] %}
+                    <div class="col-md-4 d-flex align-items-center">
+                        <img src="{{ url_for('static', filename=e[8]) }}" class="event-media img-fluid" alt="Медіа">
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         {% endfor %}

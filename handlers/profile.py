@@ -36,7 +36,7 @@ async def handle_profile(callback: types.CallbackQuery):
         [InlineKeyboardButton(text="⬅️ Головне меню", callback_data="main_menu")]
     ])
 
-    photo_path = os.path.join("static", user.photo) if user.photo else "static/resources/anon_user.png"
+    photo_path = os.path.join("static", user.photo) if user.photo else "static/defaults/anon.jpg"
     try:
         photo = FSInputFile(photo_path)
         await callback.message.answer_photo(photo=photo, caption=text, parse_mode="HTML", reply_markup=markup)

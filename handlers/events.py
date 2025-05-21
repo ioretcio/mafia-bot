@@ -1,12 +1,12 @@
 from aiogram import Router, types, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.markdown import hbold, hitalic
 from handlers.start import get_back_to_main_menu
 from database import SessionLocal
 from models.user import User
 from models.game import Game
 from models.registration import Registration
 from models.payment import Payment
-from aiogram.utils.markdown import hbold, hitalic
 from datetime import date
 from wayforpay_client import WayForPayClient
 
@@ -71,7 +71,7 @@ async def handle_signup(callback: types.CallbackQuery):
         await callback.answer("⚠️ Користувача не знайдено!", show_alert=True)
         session.close()
         return
-
+    print("existing_payment")
     existing_payment = Payment.get_pending_by_user_and_game(user.id, game.id)
     print(existing_payment.order_reference if existing_payment else "No pending payment")
     if existing_payment:
@@ -92,7 +92,7 @@ async def handle_signup(callback: types.CallbackQuery):
         return
 
     amount = game.price or 0
-    order_reference = f"inv_{user.id}_{game.id}_{int(time.replace(':',''))}"
+    order_reference = f"inv_{user.id}_{game.id}_{date_}_{int(time.replace(':',''))}"
 
     # створюємо інвойс через WayForPayClient
     invoice = wfp.create_invoice(order_reference=order_reference, amount=amount, product_name="Game Registration")
@@ -109,7 +109,7 @@ async def handle_signup(callback: types.CallbackQuery):
     session.commit()
 
     invoice_url = invoice.get("invoiceUrl")
-    print(order_reference, invoice_url)
+    print(order_reference, invoice_url, invoice)
     buttons = [
         [InlineKeyboardButton(text="💳 Перейти до оплати", url=invoice_url)],
         [InlineKeyboardButton(text="🔁 Перевірити статус", callback_data=f"check_payment:{order_reference}")],
@@ -130,12 +130,22 @@ async def check_payment_status(callback: types.CallbackQuery):
 
     result = wfp.check_payment_status(order_reference)
     print(result)
-    status ="Approved" #result.get("transactionStatus")
+    status = result.get("transactionStatus")
 
     if status == "Approved":
-        # оновлюємо статус у БД
         session = SessionLocal()
         Payment.update_status_by_reference(order_reference, "paid")
+
+        payment = session.query(Payment).filter_by(order_reference=order_reference).first()
+        user = session.query(User).get(payment.user_id)
+        game = session.query(Game).get(payment.game_id)
+
+        already_registered = session.query(Registration).filter_by(user_id=user.id, game_id=game.id).first()
+        if not already_registered:
+            registration = Registration(user_id=user.id, game_id=game.id, payment_type="card")
+            session.add(registration)
+            session.commit()
+
         session.close()
         await callback.message.answer("✅ Оплату підтверджено! Ви зареєстровані на гру.")
     elif status == "Pending":
