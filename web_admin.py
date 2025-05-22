@@ -10,7 +10,7 @@ from aiogram.types import FSInputFile
 from werkzeug.utils import secure_filename
 import asyncio
 from database import SessionLocal
-
+import threading
 from config import BOT_TOKEN
 load_dotenv()
 bot = Bot(token=BOT_TOKEN)
@@ -80,6 +80,11 @@ async def send_announcement_to_users(users, event_text, markup, media_url):
         except Exception as e:
             print(f"❌ Не вдалося надіслати повідомлення {tg_id}: {e}")
 
+
+def run_async_task(users, event_text, markup, media_url):
+    asyncio.run(send_announcement_to_users(users, event_text, markup, media_url))
+
+
 @app.route("/create_event", methods=["GET", "POST"])
 def create_event():
     if request.method == "POST":
@@ -112,11 +117,8 @@ def create_event():
                 ]
             ]
         )
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete((send_announcement_to_users(users, event_text, markup, media_url)))
-        loop.close()
-        return redirect(url_for("list_events"))
+        threading.Thread(target=run_async_task, args=(users, event_text, markup, media_url)).start()
+        return redirect('/events')
     return render_template("create_event.html")
 
 
@@ -171,4 +173,4 @@ def delete_event(event_id):
 
 
 if __name__ == "__main__":
-    app.run(port=7654, debug=True)
+    app.run(host="0.0.0.0", port=8537)
