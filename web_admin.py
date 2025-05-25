@@ -64,6 +64,8 @@ def list_events():
 async def send_announcement_to_users(users, event_text, markup, media_url):
     for user in users:
         tg_id = user.tg_id
+        if not user.receive_notifications:
+            continue
         try:
             if media_url:
                 full_path = os.path.join("static", media_url)

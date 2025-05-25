@@ -81,32 +81,50 @@ async def handle_signup(callback: types.CallbackQuery):
         await callback.answer("⚠️ Користувача не знайдено!", show_alert=True)
         session.close()
         return
-    print("existing_payment")
-    existing_payment = Payment.get_pending_by_user_and_game(user.id, game.id)
-    print(existing_payment.order_reference if existing_payment else "No pending payment")
-    if existing_payment:
-        pay_text = f"💳 Оплатити {existing_payment.amount} грн"
-        buttons = [
-            [InlineKeyboardButton(text=pay_text, callback_data="pay_dummy")],
-            [InlineKeyboardButton(text="🔄 Перевірити статус", callback_data=f"check_payment:{existing_payment.order_reference}")],
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
-        ]
-        await callback.message.answer("💸 Оплата вже очікується. Перевірте статус або оплатіть повторно.", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-        session.close()
-        return
 
+    # ✅ Спочатку згенеруй order_reference
+    order_reference = f"inv_{user.id}_{game.id}_{date_}_{int(time.replace(':',''))}"
+
+    # 🔍 Перевірка наявності платежу
+    existing_order = session.query(Payment).filter_by(order_reference=order_reference).first()
+
+    if existing_order:
+        if existing_order.status == "approved":
+            already_registered = session.query(Registration).filter_by(user_id=user.id, game_id=game.id).first()
+            if not already_registered:
+                registration = Registration(user_id=user.id, game_id=game.id)
+                session.add(registration)
+                session.commit()
+                await callback.message.answer("✅ Ви вже оплатили і вас зареєстровано на гру!")
+            else:
+                await callback.message.answer("✅ Ви вже зареєстровані на цю гру.")
+            await callback.answer()
+            session.close()
+            return
+        else:
+            # redirect to payment (existing)
+            buttons = [
+                [InlineKeyboardButton(text=f"💳 Оплатити {existing_order.amount} грн", callback_data="pay_dummy")],
+                [InlineKeyboardButton(text="🔁 Перевірити статус", callback_data=f"check_payment:{existing_order.order_reference}")],
+                [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
+            ]
+            await callback.message.answer("💸 Оплата вже очікується. Перевірте статус або оплатіть повторно.", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+            await callback.answer()
+            session.close()
+            return
+
+    # 🧮 Перевірка ліміту
     reg_count = session.query(Registration).filter_by(game_id=game.id).count()
     if game.player_limit and reg_count >= game.player_limit:
         await callback.answer("❌ Місць більше немає.", show_alert=True)
         session.close()
         return
 
+    # 🧾 Генерація інвойсу
     amount = game.price or 0
-    order_reference = f"inv_{user.id}_{game.id}_{date_}_{int(time.replace(':',''))}"
-
-    # створюємо інвойс через WayForPayClient
     invoice = wfp.create_invoice(order_reference=order_reference, amount=amount, product_name="Game Registration")
 
+    # 💾 Збереження платежу
     payment = Payment(
         user_id=user.id,
         game_id=game.id,
@@ -118,8 +136,8 @@ async def handle_signup(callback: types.CallbackQuery):
     session.add(payment)
     session.commit()
 
+    # 🔘 Кнопки для оплати
     invoice_url = invoice.get("invoiceUrl")
-    print(order_reference, invoice_url, invoice)
     buttons = [
         [InlineKeyboardButton(text="💳 Перейти до оплати", url=invoice_url)],
         [InlineKeyboardButton(text="🔁 Перевірити статус", callback_data=f"check_payment:{order_reference}")],
@@ -129,6 +147,8 @@ async def handle_signup(callback: types.CallbackQuery):
     await callback.message.answer("💸 Залишилось оплатити гру!", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     await callback.answer()
     session.close()
+
+
 
 
 @router.callback_query(lambda c: c.data.startswith("check_payment:"))

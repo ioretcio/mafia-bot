@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from database import SessionLocal
 from datetime import date
 from models.base import Base
+from sqlalchemy import Boolean
 
 class User(Base):
     __tablename__ = "users"
@@ -13,7 +14,7 @@ class User(Base):
     status = Column(String, default="Новичок")
     games_played = Column(Integer, default=0)
     bonus_points = Column(Integer, default=0)
-
+    receive_notifications = Column(Boolean, default=True) 
 
     # ------- CRUD -------
     @staticmethod
