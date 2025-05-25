@@ -9,6 +9,7 @@ from models.registration import Registration
 from models.payment import Payment
 from datetime import date
 from wayforpay_client import WayForPayClient
+from utils import safe_edit_or_send
 
 router = Router()
 wfp = WayForPayClient()
@@ -30,9 +31,9 @@ async def show_upcoming_events(callback: types.CallbackQuery):
         session.close()
         return
 
-    await callback.message.delete()
-
-    for game in games:
+    
+    message_ids = []
+    for idx, game in enumerate(games):
         reg_count = session.query(Registration).filter(Registration.game_id == game.id).count()
         is_registered = session.query(Registration).filter_by(game_id=game.id, user_id=user.id).first() is not None
 
@@ -43,14 +44,23 @@ async def show_upcoming_events(callback: types.CallbackQuery):
             buttons.append([InlineKeyboardButton(text="📥 Записатись", callback_data=f"signup:{game.date}_{game.time}")])
         else:
             buttons.append([InlineKeyboardButton(text="❌ Відмовитись", callback_data=f"unregister:{game.id}")])
-
         buttons.append([InlineKeyboardButton(text="👥 Переглянути гравців", callback_data=f"players:{game.id}")])
 
-        markup = InlineKeyboardMarkup(inline_keyboard=buttons)
-        await callback.message.answer(text, reply_markup=markup, parse_mode="HTML")
 
-    await callback.message.answer("⬅️ Повернутись у меню", reply_markup=get_back_to_main_menu())
-    await callback.answer()
+        if idx == len(games) - 1:
+            to_delete = "_".join(f"{mid}" for mid in message_ids)
+            back_callback = f"main_menu_{to_delete}"
+            buttons.append([InlineKeyboardButton(text="⬅️ Повернутись у меню", callback_data=back_callback)])
+
+        markup = InlineKeyboardMarkup(inline_keyboard=buttons)
+        if(idx == 0):
+            msg = await safe_edit_or_send(callback.message, text, reply_markup=markup, parse_mode="HTML")
+            message_ids.append(msg.message_id)
+        else:
+            msg = await callback.message.answer(text, reply_markup=markup, parse_mode="HTML")
+            message_ids.append(msg.message_id)
+
+
     session.close()
 
 

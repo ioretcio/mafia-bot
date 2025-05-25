@@ -16,10 +16,26 @@ def get_back_to_main_menu():
 
 
 
-@router.callback_query(F.data == "main_menu")
+@router.callback_query(F.data.startswith("main_menu"))
 async def handle_main_menu(callback: types.CallbackQuery):
-    await safe_edit_or_send(callback.message, f"👋 Привіт, {callback.from_user.full_name}!", reply_markup=get_main_inline_menu())
-    await callback.message.delete()
+    # Парсимо ID для видалення
+    parts = callback.data.split("_")[2:]  # все після main_menu_
+    for part in parts:
+        try:
+            msg_id = int(part)
+            await callback.bot.delete_message(callback.message.chat.id, msg_id)
+        except Exception as e:
+            print(f"❌ Не вдалося видалити {part}: {e}")
+
+    # Редагуємо поточне
+    await safe_edit_or_send(
+        callback.message,
+        f"👋 Привіт, {callback.from_user.full_name}!",
+        reply_markup=get_main_inline_menu()
+    )
+    await callback.answer()
+
+
 
 def get_main_inline_menu():
     return InlineKeyboardMarkup(
