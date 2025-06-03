@@ -40,6 +40,7 @@ class WayForPayClient:
             product_count,
             product_price
         ]
+        print(f"Sign parts: {sign_parts}")
         signature = self._generate_signature(sign_parts)
 
         payload = {
@@ -60,8 +61,9 @@ class WayForPayClient:
             "productPrice": [float(product_price)],
             "productCount": [int(product_count)]
         }
-
+        print(f"Payload: {json.dumps(payload, indent=2)}")
         response = requests.post(self.api_url, json=payload)
+        print(response.text)
         return response.json()
 
     def check_payment_status(self, order_reference: str) -> dict:
