@@ -4,6 +4,8 @@ from models.game import Game
 from models.registration import Registration
 from models.payment import Payment
 import os
+from flask import session
+
 from dotenv import load_dotenv
 from aiogram import Bot
 from aiogram.types import FSInputFile
@@ -90,38 +92,56 @@ def run_async_task(users, event_text, markup, media_url):
 @app.route("/create_event", methods=["GET", "POST"])
 def create_event():
     if request.method == "POST":
-        date = request.form["date"]
-        time = request.form["time"]
-        location = request.form["location"]
-        type_ = request.form["type"]
-        host = request.form["host"]
-        price = request.form["price"]
-        player_limit = request.form["player_limit"]
-        description = request.form["description"]
+        data = dict(request.form)
         file = request.files.get("media")
-        media_url = ""
-        if file:
+        filename = ""
+        if file and file.filename:
             filename = secure_filename(file.filename)
-            media_url = f"uploads/{filename}"
             file.save(os.path.join(UPLOAD_FOLDER, filename))
+            filename = f"uploads/{filename}"
+        data["media_url"] = filename
+        session["pending_event"] = data
+        return redirect("/preview_event")
 
-        Game.add(date, time, location, type_, host, media_url, price, player_limit, description)
-        users = User.all()
+    return render_template("create_event.html")
+
+
+@app.route("/preview_event", methods=["GET", "POST"])
+def preview_event():
+    data = session.get("pending_event")
+    if not data:
+        return redirect("/create_event")
+
+    if request.method == "POST":
+        game = Game.add(
+            data["date"], data["time"], data["location"], data["type"],
+            data["host"], data["media_url"], data["price"],
+            data["player_limit"], data["description"]
+        )
+        game_id = game.id
+        session.pop("pending_event", None)
+
+        # Повідомлення
         event_text = f"📢 <b>Нова гра!</b>\n\n" \
-                     f"📅 {date} о {time}\n📍 {location}\n🎮 {type_}\n👤 Ведучий: {host or 'Невідомо'}"
+                     f"📅 {data['date']} о {data['time']}\n📍 {data['location']}\n🎮 {data['type']}\n👤 Ведучий: {data['host'] or 'Невідомо'}"
 
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         markup = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="📥 Записатись", callback_data=f"signup:{date}_{time}"),
-                    InlineKeyboardButton(text="👥 Гравці", callback_data=f"players:{date}_{time}")
+                    InlineKeyboardButton(text="📥 Записатись", callback_data=f"signup:{game_id}"),
+                    InlineKeyboardButton(text="👥 Переглянути гравців", callback_data=f"players:{game_id}")
                 ]
             ]
         )
-        threading.Thread(target=run_async_task, args=(users, event_text, markup, media_url)).start()
-        return redirect('/events')
-    return render_template("create_event.html")
+
+        users = User.all()
+        threading.Thread(target=run_async_task, args=(users, event_text, markup, data["media_url"])).start()
+
+        flash("Подію створено!")
+        return redirect("/events")
+
+    return render_template("preview_event.html", event=data)
 
 
 @app.route("/event/<int:event_id>/players")

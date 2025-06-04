@@ -36,14 +36,22 @@ class Game(Base):
     @staticmethod
     def add(date, time, location, type_, host, media, price, player_limit, description):
         session = SessionLocal()
-        event = Game(
-            date=date, time=time, location=location, type=type_, host=host,
-            media=media, price=price, player_limit=player_limit, description=description
+        game = Game(
+            date=date,
+            time=time,
+            location=location,
+            type=type_,
+            host=host,
+            media=media,
+            price=price,
+            player_limit=player_limit,
+            description=description
         )
-        session.add(event)
+        session.add(game)
         session.commit()
+        session.refresh(game)  # 👈 ОБОВʼЯЗКОВО! отримати id ДО закриття сесії
         session.close()
-        return event
+        return game
 
     @staticmethod
     def update(event_id, date, time, location, type_, host, price, player_limit, description, media):

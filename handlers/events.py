@@ -16,6 +16,16 @@ from PIL import Image
 from io import BytesIO
 import os
 from time import time
+from datetime import datetime, timedelta, time as dtime
+
+
+
+
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+
+
 router = Router()
 wfp = WayForPayClient()
 
@@ -220,6 +230,26 @@ async def handle_unregister(callback: types.CallbackQuery):
     user = session.query(User).filter_by(tg_id=callback.from_user.id).first()
     if not user:
         await callback.answer("⚠️ Вас не знайдено в базі.", show_alert=True)
+        session.close()
+        return
+
+    game = session.query(Game).get(game_id)
+    if not game:
+        await callback.answer("⚠️ Гру не знайдено.", show_alert=True)
+        session.close()
+        return
+
+    # Поточний київський час
+    kyiv_now = datetime.now(ZoneInfo("Europe/Kyiv"))
+    print(f"Поточний час Київ: {kyiv_now}")
+    # Граничний дедлайн — 21:00 попереднього дня
+    game_date = datetime.strptime(game.date, "%Y-%m-%d").date()
+    game_datetime = datetime.combine(game_date, dtime(hour=21), tzinfo=ZoneInfo("Europe/Kyiv"))
+
+    unregister_deadline = game_datetime - timedelta(days=1)
+
+    if kyiv_now > unregister_deadline:
+        await callback.answer("⛔ Відписатися можна лише до 21:00 за день до гри.", show_alert=True)
         session.close()
         return
 
