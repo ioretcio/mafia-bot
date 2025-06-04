@@ -57,7 +57,7 @@ def list_events():
             e.id, e.date, e.time, e.location, e.type, e.host,
             Game.players_count(e.id),
             e.player_limit,
-            e.media  # додано
+            e.media
         ) for e in events
     ])
 

@@ -1,7 +1,9 @@
 from aiogram import Router, types, F
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.markdown import hbold, hitalic
-from handlers.start import get_back_to_main_menu
+from aiogram.filters import StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
+from handlers.start import get_main_inline_menu, get_back_to_main_menu
 from database import SessionLocal
 from models.user import User
 from models.game import Game
@@ -10,9 +12,17 @@ from models.payment import Payment
 from datetime import date
 from wayforpay_client import WayForPayClient
 from utils import safe_edit_or_send
-
+from PIL import Image
+from io import BytesIO
+import os
+from time import time
 router = Router()
 wfp = WayForPayClient()
+
+class EditStates(StatesGroup):
+    awaiting_new_username = State()
+    awaiting_topup_amount = State()
+    confirming_balance_payment = State()
 
 @router.callback_query(F.data == "upcoming_events")
 async def show_upcoming_events(callback: types.CallbackQuery):
@@ -31,21 +41,19 @@ async def show_upcoming_events(callback: types.CallbackQuery):
         session.close()
         return
 
-    
     message_ids = []
     for idx, game in enumerate(games):
         reg_count = session.query(Registration).filter(Registration.game_id == game.id).count()
         is_registered = session.query(Registration).filter_by(game_id=game.id, user_id=user.id).first() is not None
 
-        text = f"📅 {hbold(game.date)} о {hitalic(game.time)}\n🎮 {game.type}\n📍 {game.location}\n👥 Записано: {reg_count}/{game.player_limit}"
+        text = f"📅 <b>{game.date}</b> о <i>{game.time}</i>\n🎮 {game.type}\n📍 {game.location}\n👥 Записано: {reg_count}/{game.player_limit}"
 
         buttons = []
         if not is_registered:
-            buttons.append([InlineKeyboardButton(text="📥 Записатись", callback_data=f"signup:{game.date}_{game.time}")])
+            buttons.append([InlineKeyboardButton(text="📥 Записатись", callback_data=f"signup:{game.id}")])
         else:
             buttons.append([InlineKeyboardButton(text="❌ Відмовитись", callback_data=f"unregister:{game.id}")])
         buttons.append([InlineKeyboardButton(text="👥 Переглянути гравців", callback_data=f"players:{game.id}")])
-
 
         if idx == len(games) - 1:
             to_delete = "_".join(f"{mid}" for mid in message_ids)
@@ -53,137 +61,124 @@ async def show_upcoming_events(callback: types.CallbackQuery):
             buttons.append([InlineKeyboardButton(text="⬅️ Повернутись у меню", callback_data=back_callback)])
 
         markup = InlineKeyboardMarkup(inline_keyboard=buttons)
-        if(idx == 0):
+        if idx == 0:
             msg = await safe_edit_or_send(callback.message, text, reply_markup=markup, parse_mode="HTML")
             message_ids.append(msg.message_id)
         else:
             msg = await callback.message.answer(text, reply_markup=markup, parse_mode="HTML")
             message_ids.append(msg.message_id)
 
-
     session.close()
 
-
 @router.callback_query(lambda c: c.data.startswith("signup:"))
-async def handle_signup(callback: types.CallbackQuery):
+async def handle_signup(callback: types.CallbackQuery, state: FSMContext):
     session = SessionLocal()
-    data = callback.data.split("signup:")[1]
-    date_, time = data.split("_")
-
-    game = session.query(Game).filter_by(date=date_, time=time).first()
+    user = session.query(User).filter_by(tg_id=callback.from_user.id).first()
+    game_id = int(callback.data.split("signup:")[1])
+    game = session.query(Game).get(game_id)
     if not game:
         await callback.answer("⚠️ Гру не знайдено!", show_alert=True)
         session.close()
         return
 
-    user = session.query(User).filter_by(tg_id=callback.from_user.id).first()
-    if not user:
-        await callback.answer("⚠️ Користувача не знайдено!", show_alert=True)
-        session.close()
-        return
-
-    # ✅ Спочатку згенеруй order_reference
-    order_reference = f"inv_{user.id}_{game.id}_{date_}_{int(time.replace(':',''))}"
-
-    # 🔍 Перевірка наявності платежу
-    existing_order = session.query(Payment).filter_by(order_reference=order_reference).first()
-
-    if existing_order:
-        if existing_order.status == "approved":
-            already_registered = session.query(Registration).filter_by(user_id=user.id, game_id=game.id).first()
-            if not already_registered:
-                registration = Registration(user_id=user.id, game_id=game.id)
-                session.add(registration)
-                session.commit()
-                await callback.message.answer("✅ Ви вже оплатили і вас зареєстровано на гру!")
-            else:
-                await callback.message.answer("✅ Ви вже зареєстровані на цю гру.")
-            await callback.answer()
-            session.close()
-            return
-        else:
-            # redirect to payment (existing)
-            buttons = [
-                [InlineKeyboardButton(text=f"💳 Оплатити {existing_order.amount} грн", callback_data="pay_dummy")],
-                [InlineKeyboardButton(text="🔁 Перевірити статус", callback_data=f"check_payment:{existing_order.order_reference}")],
-                [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
-            ]
-            await callback.message.answer("💸 Оплата вже очікується. Перевірте статус або оплатіть повторно.", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-            await callback.answer()
-            session.close()
-            return
-
-    # 🧮 Перевірка ліміту
     reg_count = session.query(Registration).filter_by(game_id=game.id).count()
     if game.player_limit and reg_count >= game.player_limit:
         await callback.answer("❌ Місць більше немає.", show_alert=True)
         session.close()
         return
 
-    # 🧾 Генерація інвойсу
-    amount = game.price or 0
-    invoice = wfp.create_invoice(order_reference=order_reference, amount=amount, product_name="Game Registration")
+    if user.balance >= game.price:
+        await state.set_data({"game_id": game.id, "amount": game.price})
+        await callback.message.answer(f"🔒 Підтвердити оплату {game.price} грн з балансу?", reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Так, підтверджую", callback_data="confirm_balance_payment")],
+            [InlineKeyboardButton(text="⬅️ Скасувати", callback_data="main_menu")]
+        ]))
+        await state.set_state(EditStates.confirming_balance_payment)
+    else:
+        diff = game.price - user.balance
+        order_reference =f"inv_{user.id}_{game.id}_{int(time())}"
 
-    # 💾 Збереження платежу
-    payment = Payment(
-        user_id=user.id,
-        game_id=game.id,
-        amount=amount,
-        payment_type="card",
-        status="pending",
-        order_reference=order_reference
-    )
-    session.add(payment)
-    session.commit()
 
-    # 🔘 Кнопки для оплати
-    invoice_url = invoice.get("invoiceUrl")
-    buttons = [
-        [InlineKeyboardButton(text="💳 Перейти до оплати", url=invoice_url)],
-        [InlineKeyboardButton(text="🔁 Перевірити статус", callback_data=f"check_payment:{order_reference}")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
-    ]
+        invoice = wfp.create_invoice(order_reference=order_reference, amount=int(diff), product_name="Game Registration")
+        payment = Payment(
+            user_id=user.id,
+            game_id=game.id,
+            amount=int(diff),
+            payment_type="card",
+            status="pending",
+            order_reference=order_reference
+        )
+        session.add(payment)
+        session.commit()
 
-    await callback.message.answer("💸 Залишилось оплатити гру!", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
-    await callback.answer()
+        invoice_url = invoice.get("invoiceUrl")
+        buttons = [
+            [InlineKeyboardButton(text="💳 Перейти до оплати", url=invoice_url, callback_data="...")],
+            [InlineKeyboardButton(text="🔁 Перевірити статус", callback_data=f"check_payment:{order_reference}")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
+        ]
+        await callback.message.answer(f"💸 Вам не вистачає {diff} грн. Поповніть рахунок та підтвердьте оплату.\nРаджу поповнювати рахунок наперед в особисому кабінеті.✨", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+
     session.close()
+    await callback.answer()
 
+@router.callback_query(F.data == "confirm_balance_payment", StateFilter(EditStates.confirming_balance_payment))
+async def confirm_balance_payment(callback: types.CallbackQuery, state: FSMContext):
+    session = SessionLocal()
+    user = session.query(User).filter_by(tg_id=callback.from_user.id).first()
+    data = await state.get_data()
+    game_id = data.get("game_id")
+    amount = data.get("amount")
 
+    if not user or not game_id or not amount:
+        await callback.message.answer("⚠️ Неможливо завершити оплату.")
+        await state.clear()
+        session.close()
+        return
 
+    game = session.query(Game).get(game_id)
+    if user.balance < amount:
+        await callback.message.answer("❌ Недостатньо коштів на балансі.")
+        await state.clear()
+        session.close()
+        return
+
+    user.balance -= amount
+    registration = Registration(user_id=user.id, game_id=game.id, payment_type="balance")
+    session.add(registration)
+    session.commit()
+    await callback.message.answer("✅ Ви успішно зареєстровані на гру! Сума списана з балансу.")
+    await state.clear()
+    session.close()
+    await callback.answer()
 
 @router.callback_query(lambda c: c.data.startswith("check_payment:"))
 async def check_payment_status(callback: types.CallbackQuery):
     order_reference = callback.data.split("check_payment:")[1]
-    print(order_reference)
-    from wayforpay_client import WayForPayClient  # або інший твій шлях
-    wfp = WayForPayClient()
-
     result = wfp.check_payment_status(order_reference)
-    print(result)
     status = result.get("transactionStatus")
 
+    session = SessionLocal()
+    payment = session.query(Payment).filter_by(order_reference=order_reference).first()
+    user = session.query(User).get(payment.user_id)
+    game = session.query(Game).get(payment.game_id)
+
     if status == "Approved":
-        session = SessionLocal()
-        Payment.update_status_by_reference(order_reference, "paid")
-
-        payment = session.query(Payment).filter_by(order_reference=order_reference).first()
-        user = session.query(User).get(payment.user_id)
-        game = session.query(Game).get(payment.game_id)
-
-        already_registered = session.query(Registration).filter_by(user_id=user.id, game_id=game.id).first()
-        if not already_registered:
-            registration = Registration(user_id=user.id, game_id=game.id, payment_type="card")
-            session.add(registration)
-            session.commit()
-
-        session.close()
-        await callback.message.answer("✅ Оплату підтверджено! Ви зареєстровані на гру.")
+        payment.status = "paid"
+        user.balance += payment.amount
+        user.balance -= game.price
+        registration = Registration(user_id=user.id, game_id=game.id, payment_type="balance")
+        session.add(registration)
+        session.commit()
+        await callback.message.answer("✅ Оплату підтверджено та реєстрацію завершено!")
     elif status == "Pending":
         await callback.answer("⏳ Оплата ще очікується...", show_alert=True)
     else:
         await callback.answer(f"❌ Статус оплати: {status}", show_alert=True)
 
+    session.close()
     await callback.answer()
+
 
 
 @router.callback_query(lambda c: c.data.startswith("players:"))
