@@ -21,8 +21,11 @@ def get_back_to_main_menu():
 async def check_user_pending_payments(user: User, bot, chat_id: int):
     session = SessionLocal()
 
-    pending_payments = session.query(Payment).filter_by(user_id=user.id, status="pending").all()
-    print(f"Found {len(pending_payments)} pending payments for user {user.id}")
+    # Отримати користувача заново з цього session
+    db_user = session.query(User).filter_by(id=user.id).first()
+
+    pending_payments = session.query(Payment).filter_by(user_id=db_user.id, status="pending").all()
+    print(f"Found {len(pending_payments)} pending payments for user {db_user.id}")
 
     for p in pending_payments:
         result = wfp.check_payment_status(p.order_reference)
@@ -30,7 +33,7 @@ async def check_user_pending_payments(user: User, bot, chat_id: int):
         print(f"Payment {p.id} status: {status}")
 
         if status == "Approved":
-            user.balance += p.amount
+            db_user.balance += p.amount
             p.status = "paid"
             session.commit()
             await bot.send_message(chat_id, f"✅ Отримано оплату {p.amount} грн! Баланс поповнено.")
@@ -41,6 +44,7 @@ async def check_user_pending_payments(user: User, bot, chat_id: int):
             await bot.send_message(chat_id, f"❌ Оплата на {p.amount} грн була відхилена.")
 
     session.close()
+
 
 
 @router.callback_query(F.data.startswith("main_menu"))
