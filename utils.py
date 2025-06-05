@@ -12,5 +12,8 @@ async def safe_edit_or_send(message: Message, text: str, reply_markup=None, pars
     except Exception as e:
         print(f"❌ safe_edit_or_send error: {e}")
         await message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode)
-        await message.delete()  # видаляємо оригінальне повідомлення, якщо редагування не вдалося
+        try:
+            await message.delete()
+        except Exception as delete_error:
+            print(f"❌ safe_edit_or_send delete error: {delete_error}")
     return ret

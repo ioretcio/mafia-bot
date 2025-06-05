@@ -48,7 +48,10 @@ async def handle_profile(callback: types.CallbackQuery):
     try:
         photo = FSInputFile(photo_path)
         await callback.message.answer_photo(photo=photo, caption=text, parse_mode="HTML", reply_markup=markup)
-        await callback.message.delete()
+        try:
+            await callback.message.delete()
+        except Exception:
+                pass
     except Exception as e:
         await callback.message.answer("⚠️ Не вдалося завантажити фото профілю.")
         print(f"❌ Помилка завантаження фото: {e}")
@@ -57,7 +60,10 @@ async def handle_profile(callback: types.CallbackQuery):
 @router.callback_query(F.data == "topup_balance")
 async def prompt_topup_amount(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("💸 Введи суму, яку хочеш поповнити (в грн):")
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await state.set_state(EditStates.awaiting_topup_amount)
 
 @router.message(F.text, StateFilter(EditStates.awaiting_topup_amount))
@@ -108,8 +114,10 @@ async def handle_topup_amount(message: types.Message, state: FSMContext):
 @router.callback_query(F.data == "edit_photo")
 async def prompt_photo_upload(callback: types.CallbackQuery):
     await callback.message.answer("📤 Надішли нове фото профілю як окреме зображення.")
-    await callback.message.delete()
-
+    try:
+        await callback.message.delete()
+    except Exception:
+            pass
 @router.message(F.photo)
 async def handle_profile_photo(message: types.Message):
     session = SessionLocal()
@@ -147,7 +155,10 @@ async def handle_profile_photo(message: types.Message):
 @router.callback_query(F.data == "edit_username")
 async def prompt_fullname(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("✍️ Надішли нове ім’я")
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await state.set_state(EditStates.awaiting_new_username)
 
 @router.message(F.text, StateFilter(EditStates.awaiting_new_username))

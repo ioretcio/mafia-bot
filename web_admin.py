@@ -71,7 +71,7 @@ async def send_announcement_to_users(users, event_text, markup, media_url):
         try:
             if media_url:
                 full_path = os.path.join("static", media_url)
-                if media_url.endswith(".jpg") or media_url.endswith(".png"):
+                if media_url.endswith(".jpg") or media_url.endswith(".png") or media_url.endswith(".jpeg"):
                     photo = FSInputFile(full_path)
                     await bot.send_photo(tg_id, photo=photo, caption=event_text, parse_mode="HTML", reply_markup=markup)
                 elif media_url.endswith(".mp4"):
@@ -86,8 +86,10 @@ async def send_announcement_to_users(users, event_text, markup, media_url):
 
 
 def run_async_task(users, event_text, markup, media_url):
-    asyncio.run(send_announcement_to_users(users, event_text, markup, media_url))
-
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(send_announcement_to_users(users, event_text, markup, media_url))
+    loop.close()
 
 @app.route("/create_event", methods=["GET", "POST"])
 def create_event():
