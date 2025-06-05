@@ -7,6 +7,8 @@ from aiogram import F
 from database import SessionLocal
 from wayforpay_client import WayForPayClient
 from models.payment import Payment
+from aiogram.filters import CommandObject
+
 from asyncio import create_task
 router = Router()
 
@@ -19,21 +21,26 @@ def get_back_to_main_menu():
 async def check_user_pending_payments(user: User, bot, chat_id: int):
     session = SessionLocal()
 
-    # try:
     pending_payments = session.query(Payment).filter_by(user_id=user.id, status="pending").all()
     print(f"Found {len(pending_payments)} pending payments for user {user.id}")
+
     for p in pending_payments:
         result = wfp.check_payment_status(p.order_reference)
         status = result.get("transactionStatus")
         print(f"Payment {p.id} status: {status}")
+
         if status == "Approved":
             user.balance += p.amount
             p.status = "paid"
             session.commit()
             await bot.send_message(chat_id, f"✅ Отримано оплату {p.amount} грн! Баланс поповнено.")
-    # finally:
-    #     session.close()
 
+        elif status == "Declined":
+            p.status = "declined"
+            session.commit()
+            await bot.send_message(chat_id, f"❌ Оплата на {p.amount} грн була відхилена.")
+
+    session.close()
 
 
 @router.callback_query(F.data.startswith("main_menu"))
@@ -80,16 +87,35 @@ def get_main_inline_menu():
 
 
 @router.message(Command("start"))
-async def start_handler(message: types.Message):
+async def start_handler(message: types.Message, command: CommandObject):
+    session = SessionLocal()
+    tg_id = message.from_user.id
+    user = session.query(User).filter_by(tg_id=tg_id).first()
 
-    create_task(check_user_pending_payments(message.from_user, message.bot, message.chat.id))
+    if user:
+        # 👤 Зареєстрований — нормальна взаємодія
+        create_task(check_user_pending_payments(user, message.bot, message.chat.id))
+        await message.answer(f"👋 Привіт, {message.from_user.full_name}!", reply_markup=get_main_inline_menu())
+        return
 
-    User.get_or_create(
-        message.from_user.id,
-        message.from_user.username,
-        message.from_user.full_name
-    )
-    await message.answer(
-        f"👋 Привіт, {message.from_user.full_name}!",
-        reply_markup=get_main_inline_menu()
-    )
+    # 🧪 Перевірка параметра
+    if command.args == "alohomora":
+        # 🔐 Магічне слово — зареєструвати
+        new_user = User(
+            tg_id=tg_id,
+            username=message.from_user.username,
+            full_name=message.from_user.full_name,
+            photo="",
+            status="active",
+            games_played=0,
+            bonus_points=0,
+            receive_notifications=True,
+            balance=0
+        )
+        session.add(new_user)
+        session.commit()
+        await message.answer("✅ Вас успішно зареєстровано!", reply_markup=get_main_inline_menu())
+        return
+
+    # ❌ Без параметра і не зареєстрований
+    await message.answer("❌ Схоже, не ваш день...")
