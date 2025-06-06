@@ -11,15 +11,18 @@ from aiogram import Bot
 from aiogram.types import FSInputFile
 from werkzeug.utils import secure_filename
 import asyncio
-from database import SessionLocal
+from models.database import SessionLocal
 import threading
-from config import BOT_TOKEN
+from utils.config import BOT_TOKEN
 load_dotenv()
 bot = Bot(token=BOT_TOKEN)
 
 app = Flask(__name__)
 app.secret_key = "your_secret_here"
 UPLOAD_FOLDER = 'static/uploads'
+
+from main import main_loop
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route("/")
@@ -64,6 +67,7 @@ def list_events():
     ])
 
 async def send_announcement_to_users(users, event_text, markup, media_url):
+    print(users)
     for user in users:
         tg_id = user.tg_id
         if not user.receive_notifications:
@@ -81,15 +85,16 @@ async def send_announcement_to_users(users, event_text, markup, media_url):
                     await bot.send_message(tg_id, text=event_text + f"\n\n📎 [Медіа]({media_url})", parse_mode="HTML", reply_markup=markup)
             else:
                 await bot.send_message(tg_id, text=event_text, parse_mode="HTML", reply_markup=markup)
+            print(f"▶ Надсилаємо {tg_id}")
         except Exception as e:
             print(f"❌ Не вдалося надіслати повідомлення {tg_id}: {e}")
 
 
 def run_async_task(users, event_text, markup, media_url):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(send_announcement_to_users(users, event_text, markup, media_url))
-    loop.close()
+    asyncio.run_coroutine_threadsafe(
+        send_announcement_to_users(users, event_text, markup, media_url),
+        main_loop
+    )
 
 @app.route("/create_event", methods=["GET", "POST"])
 def create_event():

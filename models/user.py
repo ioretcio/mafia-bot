@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
-from database import SessionLocal
+from models.database import SessionLocal
 from datetime import date
 from models.base import Base
 from sqlalchemy import Boolean

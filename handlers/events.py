@@ -4,14 +4,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 from handlers.start import get_back_to_main_menu
-from database import SessionLocal
+from models.database import SessionLocal
 from models.user import User
 from models.game import Game
 from models.registration import Registration
 from models.payment import Payment
 from datetime import date
-from wayforpay_client import WayForPayClient
-from utils import safe_edit_or_send
+from utils.wayforpay_client import WayForPayClient
+from utils.utils import safe_edit_or_send
 from PIL import Image
 from io import BytesIO
 import os
@@ -41,6 +41,7 @@ async def show_upcoming_events(callback: types.CallbackQuery):
     games = (
         session.query(Game)
         .filter(Game.date >= date.today())
+        .filter(Game.is_send == True)
         .order_by(Game.date)
         .limit(5)
         .all()

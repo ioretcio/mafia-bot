@@ -2,7 +2,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime
 from datetime import datetime
 from models.base import Base
-from database import SessionLocal
+from models.database import SessionLocal
 
 class Payment(Base):
     __tablename__ = "payments"

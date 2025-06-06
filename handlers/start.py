@@ -2,10 +2,10 @@ from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from models.user import User
-from utils import safe_edit_or_send
+from utils.utils import safe_edit_or_send
 from aiogram import F
-from database import SessionLocal
-from wayforpay_client import WayForPayClient
+from models.database import SessionLocal
+from utils.wayforpay_client import WayForPayClient
 from models.payment import Payment
 from aiogram.filters import CommandObject
 

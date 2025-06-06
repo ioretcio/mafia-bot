@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text
-from database import SessionLocal
+from models.database import SessionLocal
 from models.base import Base
 from datetime import date
 from sqlalchemy.orm import relationship

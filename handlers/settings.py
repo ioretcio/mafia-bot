@@ -1,8 +1,8 @@
 from aiogram import Router, types, F
 from handlers.start import get_back_to_main_menu
-from utils import safe_edit_or_send
+from utils.utils import safe_edit_or_send
 from models.game import Game
-from database import SessionLocal
+from models.database import SessionLocal
 from models.payment import Payment
 
 router = Router()

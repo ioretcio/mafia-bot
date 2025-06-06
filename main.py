@@ -1,7 +1,7 @@
 import asyncio
 from aiogram import Bot, Dispatcher
-from config import BOT_TOKEN
-from database import init_db
+from utils.config import BOT_TOKEN
+from models.database import init_db
 from dotenv import load_dotenv
 
 from handlers import start_router, profile_router, events_router, settings_router
@@ -13,6 +13,17 @@ dp.include_router(events_router)
 dp.include_router(settings_router)
 
 load_dotenv()
+import asyncio
+import threading
+
+main_loop = asyncio.new_event_loop()
+
+
+def start_main_loop():
+    asyncio.set_event_loop(main_loop)
+    main_loop.run_forever()
+threading.Thread(target=start_main_loop, daemon=True).start()
+
 
 async def main():
     init_db()

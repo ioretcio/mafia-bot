@@ -3,15 +3,15 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 from handlers.start import get_main_inline_menu
-from database import SessionLocal
+from models.database import SessionLocal
 from models.user import User
 from models.payment import Payment
-from wayforpay_client import WayForPayClient
+from utils.wayforpay_client import WayForPayClient
 from PIL import Image
 from io import BytesIO
 from aiogram.filters import StateFilter
 import os
-from utils import safe_edit_or_send
+from utils.utils import safe_edit_or_send
 
 router = Router()
 wfp = WayForPayClient()
