@@ -38,6 +38,9 @@
                                 <a href="{{ url_for('view_event', event_id=e[0]) }}" class="btn btn-outline-primary btn-sm">✏️ Редагувати</a>
                                 <a href="{{ url_for('show_registered_players', event_id=e[0]) }}" class="btn btn-outline-info btn-sm">👥 Гравці</a>
                             </div>
+                            {% if not e[9] %}
+                                <a href="{{ url_for('send_event', event_id=e[0]) }}" class="btn btn-warning btn-sm">✉️ Надіслати зараз</a>
+                            {% endif %}
                         </div>
                     </div>
                     {% if e[8] %}

@@ -59,7 +59,7 @@ def list_events():
             e.id, e.date, e.time, e.location, e.type, e.host,
             Game.players_count(e.id),
             e.player_limit,
-            e.media
+            e.media, e.is_send
         ) for e in events
     ])
 
@@ -115,35 +115,42 @@ def preview_event():
         return redirect("/create_event")
 
     if request.method == "POST":
-        game = Game.add(
+        Game.add(
             data["date"], data["time"], data["location"], data["type"],
             data["host"], data["media_url"], data["price"],
             data["player_limit"], data["description"]
         )
-        game_id = game.id
         session.pop("pending_event", None)
-
-        # Повідомлення
-        event_text = f"📢 <b>Нова гра!</b>\n\n" \
-                     f"📅 {data['date']} о {data['time']}\n📍 {data['location']}\n🎮 {data['type']}\n👤 Ведучий: {data['host'] or 'Невідомо'}"
-
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-        markup = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(text="📥 Записатись", callback_data=f"signup:{game_id}"),
-                    InlineKeyboardButton(text="👥 Переглянути гравців", callback_data=f"players:{game_id}")
-                ]
-            ]
-        )
-
-        users = User.all()
-        threading.Thread(target=run_async_task, args=(users, event_text, markup, data["media_url"])).start()
-
-        flash("Подію створено!")
         return redirect("/events")
 
     return render_template("preview_event.html", event=data)
+
+
+@app.route("/send_event/<int:event_id>")
+def send_event(event_id):
+    game = Game.get(event_id)
+    if not game or game.is_send:
+        flash("Подія вже була надіслана або не знайдена.")
+        return redirect("/events")
+    event_text = f"📢 <b>Нова гра!</b>\n\n" \
+                 f"📅 {game.date} о {game.time}\n📍 {game.location}\n🎮 {game.type}\n👤 Ведучий: {game.host or 'Невідомо'}"
+
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    markup = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📥 Записатись", callback_data=f"signup:{game.id}"),
+                InlineKeyboardButton(text="👥 Переглянути гравців", callback_data=f"players:{game.id}")
+            ]
+        ]
+    )
+
+    users = User.all()
+    threading.Thread(target=run_async_task, args=(users, event_text, markup, game.media)).start()
+    Game.set_sent(event_id)
+
+    flash("📨 Повідомлення успішно надіслано!")
+    return redirect("/events")
 
 
 @app.route("/event/<int:event_id>/players")

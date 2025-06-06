@@ -4,6 +4,7 @@ from models.base import Base
 from datetime import date
 from sqlalchemy.orm import relationship
 from models.registration import Registration
+from sqlalchemy import Column, Boolean
 
 class Game(Base):
     __tablename__ = "games"
@@ -17,6 +18,7 @@ class Game(Base):
     player_limit = Column(Integer, default=0)
     description = Column(Text)
     media = Column(String)
+    is_send = Column(Boolean, default=False)
 
     @staticmethod
     def all_upcoming():
@@ -70,6 +72,17 @@ class Game(Base):
                 event.media = media
             session.commit()
         session.close()
+
+
+    @staticmethod
+    def set_sent(event_id):
+        session = SessionLocal()
+        game = session.query(Game).get(event_id)
+        if game:
+            game.is_send = True
+            session.commit()
+        session.close()
+
 
     @staticmethod
     def delete(event_id):

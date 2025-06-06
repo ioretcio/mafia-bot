@@ -28,7 +28,7 @@ async def handle_profile(callback: types.CallbackQuery):
         await callback.message.answer("⚠️ Користувача не знайдено.")
         session.close()
         return
-
+    print(f"User {user.balance} balance, games played: {user.games_played}, bonus points: {user.bonus_points}")
     text = f"👤 <b>Профіль</b>\n\n" \
            f"Ім'я: {user.full_name}\n" \
            f"Нік: @{user.username}\n" \
